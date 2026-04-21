@@ -66,6 +66,16 @@ Photo naming: zero-padded sequential within series, `{NNN}.jpg`. Deleted photos 
 - Capture: draw the current video frame to an offscreen `<canvas>`, export as JPEG at quality 0.85, write blob to OPFS.
 - Resolution cap at 1080p to keep file sizes reasonable; supplement labels are readable well below sensor-max resolution.
 
+### Camera controls (M1.5)
+
+All controls route through `MediaStreamTrack.applyConstraints({ advanced: [...] })`, gated by `track.getCapabilities()` support checks so unsupported features simply don't render.
+
+- **Torch**: toggle button top-right of preview, visible only when `capabilities.torch === true`. Off on camera start. When torch is turned on, the app also applies `exposureCompensation: max(capMin, -1)` to counter close-range blowout; restores `0` when torch turns off. Silently no-ops if the device doesn't expose `exposureCompensation`.
+- **Zoom**: pinch gesture on preview when `capabilities.zoom` is present. Current factor displayed top-left. Resets to `zoom.min` on camera restart.
+- **Tap-to-focus**: single tap on preview when device supports `focusMode: 'single-shot'` and `pointsOfInterest`. Normalized `(x, y)` ∈ `[0, 1]²` mapped from tap location. Yellow ring indicator at tap point, ~700 ms.
+- **Dual shutter buttons**: mirrored left + right in footer, identical behavior, for ambidextrous single-handed portrait operation. Status text sits between.
+- Tap/pinch handlers ignore events targeting child `<button>` elements, so torch and shutter don't trigger focus/zoom.
+
 ### UPC scanning
 
 - `BarcodeDetector` API, polled via `requestAnimationFrame` on the preview video element while in "awaiting UPC" state.
@@ -122,6 +132,7 @@ React Context + `useReducer` for session state. OPFS is the source of truth; in-
 ## Milestones
 
 1. Scaffold + camera preview + single-shot capture to OPFS (smoke test).
+1.5. Camera controls: torch, pinch zoom, tap-to-focus, dual shutter buttons.
 2. Series folder creation + sequential photo writes + thumbnail strip.
 3. BarcodeDetector integration + series naming logic.
 4. Session management (create, list, resume, end).

@@ -3,6 +3,15 @@ export interface CameraStream {
   stop: () => void
 }
 
+export interface CameraCaps {
+  torch: boolean
+  zoom: { min: number; max: number; step: number } | null
+  focus: boolean
+  focusMode: string | null
+  exposureCompensation: { min: number; max: number; step: number } | null
+  raw: MediaTrackCapabilities
+}
+
 export async function startRearCamera(): Promise<CameraStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error('getUserMedia unavailable (requires secure context)')
@@ -21,6 +30,59 @@ export async function startRearCamera(): Promise<CameraStream> {
       for (const track of stream.getTracks()) track.stop()
     },
   }
+}
+
+export function getCameraCaps(track: MediaStreamTrack): CameraCaps {
+  const c = track.getCapabilities?.() ?? {}
+  const zoom =
+    c.zoom && typeof c.zoom.min === 'number' && typeof c.zoom.max === 'number'
+      ? { min: c.zoom.min, max: c.zoom.max, step: c.zoom.step ?? 0.1 }
+      : null
+  const focusModes: string[] = Array.isArray(c.focusMode) ? c.focusMode : []
+  const focusMode =
+    focusModes.find((m) => m === 'single-shot') ??
+    focusModes.find((m) => m === 'continuous') ??
+    focusModes[0] ??
+    null
+  const ec = c.exposureCompensation
+  const exposureCompensation =
+    ec && typeof ec.min === 'number' && typeof ec.max === 'number'
+      ? { min: ec.min, max: ec.max, step: ec.step ?? 0.33 }
+      : null
+  return {
+    torch: !!c.torch,
+    zoom,
+    focus: focusMode !== null || c.pointsOfInterest !== undefined,
+    focusMode,
+    exposureCompensation,
+    raw: c,
+  }
+}
+
+export async function setExposureCompensation(
+  track: MediaStreamTrack,
+  value: number,
+): Promise<void> {
+  await track.applyConstraints({ advanced: [{ exposureCompensation: value }] })
+}
+
+export async function setTorch(track: MediaStreamTrack, on: boolean): Promise<void> {
+  await track.applyConstraints({ advanced: [{ torch: on }] })
+}
+
+export async function setZoom(track: MediaStreamTrack, value: number): Promise<void> {
+  await track.applyConstraints({ advanced: [{ zoom: value }] })
+}
+
+export async function setFocusPoint(
+  track: MediaStreamTrack,
+  x: number,
+  y: number,
+  focusMode?: string | null,
+): Promise<void> {
+  const advanced: MediaTrackConstraintSet = { pointsOfInterest: [{ x, y }] }
+  if (focusMode) advanced.focusMode = focusMode
+  await track.applyConstraints({ advanced: [advanced] })
 }
 
 export async function captureFrame(
