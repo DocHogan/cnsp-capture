@@ -132,7 +132,7 @@ React Context + `useReducer` for session state. OPFS is the source of truth; in-
 1.5. Camera controls: torch, pinch zoom, tap-to-focus, dual shutter buttons.
 2. Series folder creation + sequential photo writes + thumbnail strip + retake/delete modal.
 3. Series naming stabilized as `series-{hhmmss}`; identification moved off-device.
-4. Session management (create, list, resume, end).
+4. Session management: Home screen with sessions list, Start new / Resume last / delete; Session screen with series list, Start series, End session, delete series. `localStorage["cnsp:lastSessionId"]` for one-tap resume.
 5. Zip export via fflate.
 6. PWA manifest, service worker for install, Fold-layout polish.
 7. Deploy to GitHub Pages, install to Fold, capture a real session, revise.

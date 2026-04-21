@@ -53,6 +53,14 @@ export async function deleteFile(path: string): Promise<void> {
   await dir.removeEntry(fileName)
 }
 
+export async function removeDir(path: string): Promise<void> {
+  const parts = splitPath(path)
+  const name = parts.pop()
+  if (!name) throw new Error(`invalid path: ${path}`)
+  const parent = await resolveDir(parts, { create: false })
+  await parent.removeEntry(name, { recursive: true })
+}
+
 export async function readJson<T>(path: string): Promise<T> {
   const blob = await readBlob(path)
   return JSON.parse(await blob.text()) as T
