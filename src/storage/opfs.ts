@@ -31,6 +31,33 @@ export async function writeBlob(path: string, blob: Blob): Promise<void> {
   await writable.close()
 }
 
+export async function readBlob(path: string): Promise<Blob> {
+  const parts = splitPath(path)
+  const fileName = parts.pop()
+  if (!fileName) throw new Error(`invalid path: ${path}`)
+  const dir = await resolveDir(parts, { create: false })
+  const fileHandle = await dir.getFileHandle(fileName)
+  return await fileHandle.getFile()
+}
+
+export async function writeJson(path: string, value: unknown): Promise<void> {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })
+  await writeBlob(path, blob)
+}
+
+export async function deleteFile(path: string): Promise<void> {
+  const parts = splitPath(path)
+  const fileName = parts.pop()
+  if (!fileName) throw new Error(`invalid path: ${path}`)
+  const dir = await resolveDir(parts, { create: false })
+  await dir.removeEntry(fileName)
+}
+
+export async function readJson<T>(path: string): Promise<T> {
+  const blob = await readBlob(path)
+  return JSON.parse(await blob.text()) as T
+}
+
 export interface DirEntry {
   name: string
   kind: 'file' | 'directory'

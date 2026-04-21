@@ -9,27 +9,10 @@ import {
   startRearCamera,
   type CameraCaps,
 } from '../camera/capture'
-import { listDir, storageEstimate, writeBlob, type DirEntry } from '../storage/opfs'
 
-const SMOKE_DIR = 'smoke-test'
-
-function fmtBytes(n: number | undefined): string {
-  if (n == null) return '?'
-  const units = ['B', 'KB', 'MB', 'GB']
-  let v = n
-  let u = 0
-  while (v >= 1024 && u < units.length - 1) {
-    v /= 1024
-    u++
-  }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[u]}`
-}
-
-function touchDistance(
-  a: { clientX: number; clientY: number },
-  b: { clientX: number; clientY: number },
-): number {
-  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+interface Props {
+  onCapture: (blob: Blob) => Promise<void>
+  captureLabel?: string
 }
 
 interface FocusRing {
@@ -39,11 +22,13 @@ interface FocusRing {
   ok: boolean
 }
 
-/**
- * Map a container-relative tap to normalized [0,1] coords in the video's sensor
- * frame, accounting for object-contain letterboxing. Returns null if the tap
- * landed in the letterbox (outside the rendered video).
- */
+function touchDistance(
+  a: { clientX: number; clientY: number },
+  b: { clientX: number; clientY: number },
+): number {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+}
+
 function mapToSensor(
   localX: number,
   localY: number,
@@ -76,37 +61,54 @@ function mapToSensor(
   return { x: relX / renderedW, y: relY / renderedH }
 }
 
-export function CameraPreview() {
+export function CameraPreview({ onCapture, captureLabel }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<MediaStreamTrack | null>(null)
-  const streamStopRef = useRef<(() => void) | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
   const tapStartRef = useRef<{ x: number; y: number; t: number } | null>(null)
   const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null)
 
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [entries, setEntries] = useState<DirEntry[]>([])
   const [capturing, setCapturing] = useState(false)
-  const [quota, setQuota] = useState<StorageEstimate | null>(null)
   const [caps, setCaps] = useState<CameraCaps | null>(null)
   const [torchOn, setTorchOn] = useState(false)
   const [zoom, setZoomLevel] = useState(1)
   const [focusRing, setFocusRing] = useState<FocusRing | null>(null)
 
-  async function refreshList() {
-    try {
-      setEntries(await listDir(SMOKE_DIR))
-      setQuota(await storageEstimate())
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
   useEffect(() => {
-    void refreshList()
+    let cancelled = false
+    ;(async () => {
+      try {
+        const cam = await startRearCamera()
+        if (cancelled) {
+          cam.stop()
+          return
+        }
+        stopRef.current = cam.stop
+        const track = cam.stream.getVideoTracks()[0] ?? null
+        trackRef.current = track
+        const el = videoRef.current
+        if (el) {
+          el.srcObject = cam.stream
+          await el.play()
+        }
+        if (track) {
+          const c = getCameraCaps(track)
+          setCaps(c)
+          if (c.zoom) setZoomLevel(c.zoom.min)
+        }
+        setActive(true)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? `${e.name}: ${e.message}` : String(e))
+      }
+    })()
     return () => {
-      streamStopRef.current?.()
+      cancelled = true
+      stopRef.current?.()
+      stopRef.current = null
+      trackRef.current = null
     }
   }, [])
 
@@ -116,38 +118,12 @@ export function CameraPreview() {
     return () => window.clearTimeout(id)
   }, [focusRing])
 
-  async function start() {
-    setError(null)
-    try {
-      const cam = await startRearCamera()
-      streamStopRef.current = cam.stop
-      const track = cam.stream.getVideoTracks()[0] ?? null
-      trackRef.current = track
-      const el = videoRef.current
-      if (el) {
-        el.srcObject = cam.stream
-        await el.play()
-      }
-      setActive(true)
-      if (track) {
-        const c = getCameraCaps(track)
-        setCaps(c)
-        if (c.zoom) setZoomLevel(c.zoom.min)
-      }
-    } catch (e) {
-      setError(e instanceof Error ? `${e.name}: ${e.message}` : String(e))
-    }
-  }
-
   async function shoot() {
-    if (!videoRef.current || capturing) return
+    if (!videoRef.current || capturing || !active) return
     setCapturing(true)
     try {
       const blob = await captureFrame(videoRef.current)
-      const existingJpgs = entries.filter((e) => e.name.endsWith('.jpg')).length
-      const idx = String(existingJpgs + 1).padStart(3, '0')
-      await writeBlob(`${SMOKE_DIR}/${idx}.jpg`, blob)
-      await refreshList()
+      await onCapture(blob)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -242,8 +218,6 @@ export function CameraPreview() {
   const captureBtnClass =
     'px-5 py-3 rounded-lg bg-red-600 disabled:bg-slate-700 font-medium min-w-24'
 
-  const jpgCount = entries.filter((e) => e.name.endsWith('.jpg')).length
-
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div
@@ -260,14 +234,10 @@ export function CameraPreview() {
           muted
         />
 
-        {!active && (
-          <button
-            type="button"
-            onClick={start}
-            className="absolute inset-0 m-auto h-12 w-44 rounded-lg bg-slate-100 text-slate-900 font-medium"
-          >
-            Start camera
-          </button>
+        {!active && !error && (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+            Starting camera…
+          </div>
         )}
 
         {active && caps?.torch && (
@@ -316,43 +286,21 @@ export function CameraPreview() {
           disabled={!active || capturing}
           className={captureBtnClass}
         >
-          {capturing ? '…' : 'Capture'}
+          {capturing ? '…' : (captureLabel ?? 'Capture')}
         </button>
-        <div className="text-xs opacity-80 text-center flex-1">
-          <div>
-            /{SMOKE_DIR}: {jpgCount} jpg
-          </div>
-          {quota && (
-            <div className="opacity-60">
-              {fmtBytes(quota.usage)} / {fmtBytes(quota.quota)}
-            </div>
-          )}
-        </div>
+        <div className="text-xs opacity-60 text-center flex-1">tap preview to focus</div>
         <button
           type="button"
           onClick={shoot}
           disabled={!active || capturing}
           className={captureBtnClass}
         >
-          {capturing ? '…' : 'Capture'}
+          {capturing ? '…' : (captureLabel ?? 'Capture')}
         </button>
       </div>
 
-      {entries.length > 0 && (
-        <ul className="px-4 pb-4 text-xs font-mono opacity-70 max-h-20 overflow-auto shrink-0">
-          {entries.map((e) => (
-            <li key={e.name}>
-              {e.kind === 'directory' ? '[dir] ' : ''}
-              {e.name}
-            </li>
-          ))}
-        </ul>
-      )}
-
       {error && (
-        <div className="p-3 bg-red-900/40 text-red-200 text-sm break-words shrink-0">
-          {error}
-        </div>
+        <div className="p-3 bg-red-900/40 text-red-200 text-sm break-words shrink-0">{error}</div>
       )}
     </div>
   )
