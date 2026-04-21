@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CameraPreview } from './CameraPreview'
 import { PhotoModal } from './PhotoModal'
 import { ThumbnailStrip } from './ThumbnailStrip'
-import { deletePhoto, endSeries, writePhoto, type Series } from '../session/series'
+import { deletePhoto, finalizeSeries, writePhoto, type Series } from '../session/series'
 
 interface Photo {
   name: string
@@ -11,7 +11,7 @@ interface Photo {
 
 interface Props {
   series: Series
-  onEnd: () => void
+  onEnd: (finalSeries: Series) => void
 }
 
 export function SeriesScreen({ series: initial, onEnd }: Props) {
@@ -76,8 +76,8 @@ export function SeriesScreen({ series: initial, onEnd }: Props) {
     if (ending) return
     setEnding(true)
     try {
-      await endSeries({ ...series, photoCount: photos.length })
-      onEnd()
+      const finalSeries = await finalizeSeries({ ...series, photoCount: photos.length })
+      onEnd(finalSeries)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setEnding(false)
@@ -124,11 +124,7 @@ export function SeriesScreen({ series: initial, onEnd }: Props) {
       <CameraPreview onCapture={handleCapture} captureLabel={retakeLabel} />
 
       {photos.length > 0 && (
-        <ThumbnailStrip
-          photos={photos}
-          onSelect={setModalPhoto}
-          highlighted={retakeName}
-        />
+        <ThumbnailStrip photos={photos} onSelect={setModalPhoto} highlighted={retakeName} />
       )}
 
       {error && (

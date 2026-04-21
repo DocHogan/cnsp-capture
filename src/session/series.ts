@@ -12,8 +12,6 @@ export interface SeriesMeta {
   createdAt: string
   endedAt?: string
   shotCount: number
-  upc?: string
-  name?: string
 }
 
 interface SessionRef {
@@ -21,12 +19,15 @@ interface SessionRef {
   folder: string
 }
 
-// Temporary: one session per app load. M4 replaces this with real session
-// management across reloads.
+// Temporary: one session per app load. M4 replaces with real session management.
 let currentSession: SessionRef | null = null
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
+}
+
+function hhmmss(d: Date): string {
+  return `${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
 }
 
 async function ensureSession(): Promise<SessionRef> {
@@ -47,8 +48,7 @@ async function ensureSession(): Promise<SessionRef> {
 export async function startSeries(): Promise<Series> {
   const session = await ensureSession()
   const now = new Date()
-  const hhmmss = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
-  const id = `unlabeled-${hhmmss}`
+  const id = `series-${hhmmss(now)}`
   const folder = `${session.folder}/${id}`
   const meta: SeriesMeta = {
     id,
@@ -59,7 +59,11 @@ export async function startSeries(): Promise<Series> {
   return { id, folder, createdAt: meta.createdAt, photoCount: 0 }
 }
 
-export async function endSeries(series: Series): Promise<void> {
+/**
+ * Close out a series. Updates `meta.json` with `endedAt` and the final
+ * `shotCount`. Identification and renaming happen off-device after zip export.
+ */
+export async function finalizeSeries(series: Series): Promise<Series> {
   const metaPath = `${series.folder}/meta.json`
   const current = await readJson<SeriesMeta>(metaPath)
   await writeJson(metaPath, {
@@ -67,6 +71,7 @@ export async function endSeries(series: Series): Promise<void> {
     endedAt: new Date().toISOString(),
     shotCount: series.photoCount,
   })
+  return series
 }
 
 export async function writePhoto(

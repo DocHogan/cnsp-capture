@@ -51,11 +51,9 @@ sessions/
       ...
 ```
 
-Series folder naming (applied at series creation, immutable after):
-- UPC present + name entered → `upc-{upc}__{slug(name)}`
-- UPC present, no name → `upc-{upc}`
-- No UPC, name entered → `{slug(name)}-{hhmmss}`
-- Neither → `unlabeled-{hhmmss}`
+Series folder naming is **timestamp-only in-app**. On start, every series gets `series-{hhmmss}`. `meta.json` carries `createdAt` / `endedAt` / `shotCount`. Product identification — UPC decoding, OCR, label lookup — happens **off-device after zip export**, using laptop-side tooling with more reliable decoders (`pyzbar`, `zxing-cpp`, ImageMagick preprocessing). The in-app name isn't meant to be final; the post-capture pipeline renames folders to their product-keyed canonical form before PVN alignment.
+
+Rationale: Chrome Android's native `BarcodeDetector` underperforms on the target device (Samsung Galaxy Z Fold 3), and a JS fallback (`@zxing/browser`, ~200 KB) is unnecessary complexity for a feature that's going to be redone off-device anyway with better tools and batch control.
 
 Photo naming: zero-padded sequential within series, `{NNN}.jpg`. Deleted photos leave gaps — the app does not renumber, because stable filenames matter more than dense numbering. (This is a deliberate choice; revisit if it becomes annoying in practice.)
 
@@ -76,12 +74,11 @@ All controls route through `MediaStreamTrack.applyConstraints({ advanced: [...] 
 - **Dual shutter buttons**: mirrored left + right in footer, identical behavior, for ambidextrous single-handed portrait operation. Status text sits between.
 - Tap/pinch handlers ignore events targeting child `<button>` elements, so torch and shutter don't trigger focus/zoom.
 
-### UPC scanning
+### Identification (off-device)
 
-- `BarcodeDetector` API, polled via `requestAnimationFrame` on the preview video element while in "awaiting UPC" state.
-- Supported formats: `['ean_13', 'ean_8', 'upc_a', 'upc_e']` (the four relevant to consumer supplements).
-- On first successful detection: capture the frame as series photo 001, store UPC in series meta, transition to capture mode. User sees a confirmation banner they can dismiss or correct.
-- Timeout: if no detection in 10 seconds, a "skip scan / enter name" button appears. User can also tap this earlier.
+No UPC decoding, OCR, or naming UI in the capture app. The capture app's job is just to produce clean, well-grouped JPGs. Post-processing happens on the laptop after zip import, where a dedicated script runs UPC decoding (`pyzbar` / `zxing-cpp`), OCR fallback on the label images (Tesseract or equivalent), and manual review-and-rename as the last resort, before the final folder tree lands in PVN.
+
+Earlier iterations tried `BarcodeDetector` during capture; Chrome Android's implementation on the Fold produced no hits on held barcodes even after ~200 detection passes. Moving the work off-device gives us better decoders, batch preprocessing (contrast, deskew, rotation), and no in-capture friction.
 
 ### Export
 
@@ -133,8 +130,8 @@ React Context + `useReducer` for session state. OPFS is the source of truth; in-
 
 1. Scaffold + camera preview + single-shot capture to OPFS (smoke test).
 1.5. Camera controls: torch, pinch zoom, tap-to-focus, dual shutter buttons.
-2. Series folder creation + sequential photo writes + thumbnail strip.
-3. BarcodeDetector integration + series naming logic.
+2. Series folder creation + sequential photo writes + thumbnail strip + retake/delete modal.
+3. Series naming stabilized as `series-{hhmmss}`; identification moved off-device.
 4. Session management (create, list, resume, end).
 5. Zip export via fflate.
 6. PWA manifest, service worker for install, Fold-layout polish.

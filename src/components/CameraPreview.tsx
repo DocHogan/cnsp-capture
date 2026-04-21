@@ -22,6 +22,32 @@ interface FocusRing {
   ok: boolean
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState<'ok' | 'err' | null>(null)
+  useEffect(() => {
+    if (!copied) return
+    const id = window.setTimeout(() => setCopied(null), 1500)
+    return () => window.clearTimeout(id)
+  }, [copied])
+  async function onClick() {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied('ok')
+    } catch {
+      setCopied('err')
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600"
+    >
+      {copied === 'ok' ? 'copied' : copied === 'err' ? 'clipboard blocked' : 'copy'}
+    </button>
+  )
+}
+
 function touchDistance(
   a: { clientX: number; clientY: number },
   b: { clientX: number; clientY: number },
@@ -272,9 +298,19 @@ export function CameraPreview({ onCapture, captureLabel }: Props) {
         {active && caps && (
           <details className="absolute bottom-2 left-2 max-w-[90%] bg-slate-800/90 text-xs rounded p-1 font-mono">
             <summary className="cursor-pointer px-1">caps</summary>
-            <pre className="mt-1 whitespace-pre-wrap break-words max-h-40 overflow-auto">
-              {JSON.stringify(caps.raw, null, 2)}
-            </pre>
+            {(() => {
+              const dump = JSON.stringify(caps.raw, null, 2)
+              return (
+                <>
+                  <div className="mt-1 flex gap-2 items-center">
+                    <CopyButton text={dump} />
+                  </div>
+                  <pre className="mt-1 whitespace-pre-wrap break-words max-h-40 overflow-auto">
+                    {dump}
+                  </pre>
+                </>
+              )
+            })()}
           </details>
         )}
       </div>
