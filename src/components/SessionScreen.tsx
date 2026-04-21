@@ -7,6 +7,7 @@ import {
   type SeriesSummary,
 } from '../session/series'
 import { endSession, type Session } from '../session/session'
+import { exportSessionAsZip } from '../export/zip'
 
 interface Props {
   session: Session
@@ -34,6 +35,7 @@ export function SessionScreen({ session, onStartSeries, onEndSession }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [confirmEndSession, setConfirmEndSession] = useState(false)
   const [confirmDeleteSeries, setConfirmDeleteSeries] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   async function refresh() {
     setLoading(true)
@@ -93,6 +95,18 @@ export function SessionScreen({ session, onStartSeries, onEndSession }: Props) {
     }
   }
 
+  async function handleExport() {
+    if (exporting) return
+    setExporting(true)
+    try {
+      await exportSessionAsZip(session.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   async function handleDeleteSeries(seriesId: string) {
     if (confirmDeleteSeries !== seriesId) {
       setConfirmDeleteSeries(seriesId)
@@ -146,7 +160,7 @@ export function SessionScreen({ session, onStartSeries, onEndSession }: Props) {
         )}
       </div>
 
-      <div className="p-3 flex gap-3 shrink-0 border-t border-slate-700">
+      <div className="p-3 flex gap-2 shrink-0 border-t border-slate-700">
         <button
           type="button"
           onClick={handleEndSession}
@@ -156,6 +170,14 @@ export function SessionScreen({ session, onStartSeries, onEndSession }: Props) {
           }`}
         >
           {ending ? 'Ending…' : confirmEndSession ? 'Tap again to end' : 'End session'}
+        </button>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={exporting || series.length === 0}
+          className="px-3 py-2 rounded text-sm bg-slate-700 disabled:bg-slate-800 shrink-0"
+        >
+          {exporting ? 'Zipping…' : 'Export zip'}
         </button>
         <button
           type="button"

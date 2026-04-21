@@ -7,6 +7,7 @@ import {
   type Session,
   type SessionSummary,
 } from '../session/session'
+import { exportSessionAsZip } from '../export/zip'
 
 interface Props {
   onOpenSession: (session: Session) => void
@@ -36,6 +37,7 @@ export function HomeScreen({ onOpenSession, onNewSession, refreshKey }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [lastId, setLastId] = useState<string | null>(null)
+  const [exportingId, setExportingId] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
@@ -93,6 +95,18 @@ export function HomeScreen({ onOpenSession, onNewSession, refreshKey }: Props) {
       if (s) onOpenSession(s)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleExport(id: string) {
+    if (exportingId) return
+    setExportingId(id)
+    try {
+      await exportSessionAsZip(id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setExportingId(null)
     }
   }
 
@@ -159,6 +173,14 @@ export function HomeScreen({ onOpenSession, onNewSession, refreshKey }: Props) {
                     {s.totalPhotos} {s.totalPhotos === 1 ? 'photo' : 'photos'}
                     {s.endedAt ? '' : ' · open'}
                   </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExport(s.id)}
+                  disabled={exportingId !== null || s.totalPhotos === 0}
+                  className="px-2 py-1 rounded text-xs shrink-0 bg-slate-700 disabled:bg-slate-800"
+                >
+                  {exportingId === s.id ? 'zipping…' : 'export'}
                 </button>
                 <button
                   type="button"
