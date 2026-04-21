@@ -1,0 +1,19 @@
+{
+  "name": "CNSP Capture",
+  "short_name": "CNSP",
+  "description": "Mobile-first photo capture that groups supplement shots into per-product folders and exports as a zip.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

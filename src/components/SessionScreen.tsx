@@ -122,7 +122,7 @@ export function SessionScreen({ session, onStartSeries, onEndSession }: Props) {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden w-full max-w-2xl mx-auto">
       <div className="p-3 flex flex-col gap-1 shrink-0 border-b border-slate-700">
         <div className="text-xs opacity-60">session</div>
         <div className="font-mono text-xs break-all">{session.id}</div>

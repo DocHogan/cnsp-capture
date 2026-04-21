@@ -128,7 +128,7 @@ export function HomeScreen({ onOpenSession, onNewSession, refreshKey }: Props) {
     lastId !== null && sessions.some((s) => s.id === lastId && !s.endedAt)
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden w-full max-w-2xl mx-auto">
       <div className="p-4 flex flex-col gap-3 shrink-0 border-b border-slate-700">
         <button
           type="button"

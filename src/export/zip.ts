@@ -48,5 +48,17 @@ export function triggerDownload(blob: Blob, filename: string): void {
 
 export async function exportSessionAsZip(sessionId: string): Promise<void> {
   const blob = await buildSessionZip(sessionId)
-  triggerDownload(blob, `cnsp-${sessionId}.zip`)
+  const filename = `cnsp-${sessionId}.zip`
+  const file = new File([blob], filename, { type: 'application/zip' })
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename })
+      return
+    } catch (e) {
+      // AbortError = user dismissed the share sheet; don't fall through.
+      if (e instanceof Error && e.name === 'AbortError') return
+      // Any other share failure: fall through to the download path.
+    }
+  }
+  triggerDownload(blob, filename)
 }

@@ -11,3 +11,11 @@ createRoot(rootEl).render(
     <App />
   </StrictMode>,
 )
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err: unknown) => {
+      console.error('sw registration failed', err)
+    })
+  })
+}

@@ -30,6 +30,16 @@ export function SeriesScreen({ series: initial, onEnd }: Props) {
     }
   }, [])
 
+  useEffect(() => {
+    const orientation = (
+      screen as Screen & { orientation?: ScreenOrientation & { lock?: (o: string) => Promise<void> } }
+    ).orientation
+    orientation?.lock?.('portrait').catch(() => undefined)
+    return () => {
+      orientation?.unlock?.()
+    }
+  }, [])
+
   const handleCapture = useCallback(
     async (blob: Blob) => {
       const override = retakeName ?? undefined
