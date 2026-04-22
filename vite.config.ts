@@ -10,7 +10,8 @@ const httpsConfig =
     ? { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }
     : undefined
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/cnsp-capture/' : '/',
   plugins: [react(), tailwindcss()],
   server: {
     host: '0.0.0.0',
@@ -18,4 +19,4 @@ export default defineConfig({
     https: httpsConfig,
     allowedHosts: ['.ts.net'],
   },
-})
+}))

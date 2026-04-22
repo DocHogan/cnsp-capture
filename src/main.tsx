@@ -14,7 +14,8 @@ createRoot(rootEl).render(
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err: unknown) => {
+    const base = import.meta.env.BASE_URL
+    navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch((err: unknown) => {
       console.error('sw registration failed', err)
     })
   })

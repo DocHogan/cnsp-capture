@@ -1,6 +1,6 @@
 /* CNSP Capture service worker — cache-first app shell, no OPFS involvement. */
 const CACHE = 'cnsp-v1'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
+const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

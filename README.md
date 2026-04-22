@@ -1,12 +1,22 @@
 # cnsp-capture
 
-Mobile-first PWA for capturing supplement-stack photos into a structured folder tree for PVN.
+Mobile-first PWA for capturing supplement-stack photos into a structured folder tree, exported as a zip for laptop-side post-processing (UPC decoding, OCR, alignment into PVN).
+
+**Live:** <https://dochogan.github.io/cnsp-capture/>
 
 See [docs/RPD.md](docs/RPD.md) for full requirements.
 
-## Status: M1 — smoke test
+## Install
 
-Camera preview + single-shot capture to OPFS. No sessions, no UPC, no export yet. Capture writes to `/smoke-test/NNN.jpg` in OPFS; reload the page to verify persistence via the directory listing in the UI.
+On the target device (Galaxy Z Fold 3, Chrome Android), open the live URL, tap the install prompt or Chrome menu → **Add to Home screen**. Launches fullscreen, portrait-locked for capture.
+
+## Flow
+
+1. **Home** — list of sessions. Start new, resume last, export or delete existing.
+2. **Session** — list of series captured in this session. Start new series, end session, export entire session as zip.
+3. **Series** — live camera + shutter. Torch, pinch-zoom, tap-to-focus. Thumbnail strip; tap a thumb to retake or delete. End series returns to Session screen.
+
+All storage is OPFS (transient, origin-scoped). Zip export is the commit point — after zipping, data lives on the laptop.
 
 ## Hard requirements
 
